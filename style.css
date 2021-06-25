@@ -1,14 +1,27 @@
 
+* {
+	margin: 0;
+	padding: 0;
+}
+
 body {
-	background: #ddd;
+	background: #bbb;
+	display: flex;
+	justify-content: center;
 }
 
 .content {
-
+	padding: 10%;
+	height: min-content;
+	margin-top: 100px;
+	background: #ddd;
+	border-radius: 5%;
+}
+.gameover {
+	background: #d99;
 }
 
 .cells-table {
-
 }
 .cells-line {
 	display: flex;
@@ -20,6 +33,9 @@ body {
 	margin: 2px;
 	border: solid 1px #222;
 	border-radius: 4px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 .cell-sealed {
 	background: #777;
@@ -32,4 +48,17 @@ body {
 }
 .cell-empty {
 	background: #ddd;
+}
+
+.button-reset-area {
+	display: flex;
+	flex-direction: row-reverse;
+}
+.button-reset {
+	margin-top: 20px;
+	padding: 4px;
+	background: #ddd;
+	border: solid 1px #222;
+	border-radius: 4px;
+	font-size: large;
 }

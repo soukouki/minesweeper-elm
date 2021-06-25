@@ -1,11 +1,12 @@
 module Main exposing (..)
 
+import String exposing (fromInt)
+import Maybe exposing (withDefault)
+import Random
 import Browser
-import Html exposing (Html, button, div, p, text)
+import Html exposing (Html, div, p, text)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (class, classList)
-import Random
-import String exposing (fromInt)
 
 
 -- MAIN
@@ -37,6 +38,13 @@ atTable table (x, y) =
       List.head <| List.drop x line)
     <| List.head
     <| List.drop y table
+indexedMapTable : ((Int, Int) -> a -> b) -> (Table a) -> Table b
+indexedMapTable proc table =
+  List.indexedMap (\y line ->
+    List.indexedMap (\x item ->
+      proc (x, y) item) 
+      line) 
+    table
 
 type alias Model = 
   { mode: Mode
@@ -67,7 +75,14 @@ update msg model =
     NewTable table ->
       ( Model Playing table, Cmd.none )
     Open (x, y) ->
-        ( { model | table = openCell model.table (x, y) }, Cmd.none )
+      let
+        cell = atTable model.table (x, y)
+        newCell = openCell model.table (x, y)
+      in
+      if withDefault False <| Maybe.map (\c -> c.isBomb) <| cell then
+        ( { model | table = newCell, mode = GameOver }, Cmd.none)
+      else
+        ( { model | table = newCell }, Cmd.none )
 
 openCell : CellTable -> (Int, Int) -> CellTable
 openCell table (x, y) =
@@ -87,25 +102,22 @@ tableGenerater tuple =
     (x, y) ->
       let
         tableParent = 
-          Random.list y <| Random.list x cellGenerator
+          Random.list y <| Random.list x cellParentGenerator
       in
-        Random.generate NewTable (countSurroundBombs tableParent)
+        Random.generate NewTable 
+        <| Random.map (\table -> 
+          indexedMapTable (countCellSurroundBombs table) table)
+        <| tableParent
 
-cellGenerator : Random.Generator Bool
-cellGenerator =
+cellParentGenerator : Random.Generator Bool
+cellParentGenerator =
   Random.map (\n -> if n==0 then True else False)
     <| Random.int 0 3
-
-countSurroundBombs : Random.Generator CellTableParent -> Random.Generator CellTable
-countSurroundBombs gen =
-  Random.map (\table -> 
-    List.indexedMap (\y line ->
-      List.indexedMap (\x cell -> countCellSurroundBombs table (x, y) cell) line) table) gen
 
 countCellSurroundBombs : CellTableParent -> (Int, Int) -> Bool -> Cell
 countCellSurroundBombs table (x, y) isBomb =
   let
-    at = (\(ix, iy) -> Maybe.withDefault False <| atTable table (x+ix, y+iy))
+    at = (\(ix, iy) -> withDefault False <| atTable table (x+ix, y+iy))
     surround = 
       [ at (-1, -1), at(0, -1), at(1, -1)
       , at (-1, 0),             at(1, 0)
@@ -129,8 +141,16 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-  div [class "content"]
-    [ viewTable model.table ]
+  div 
+    [ classList [("content", True), ("gameover", model.mode == GameOver)]
+    ]
+    [ viewTable model.table
+    , div [ class "button-reset-area" ]
+      [ div 
+        [ onClick (Generate (10, 10)), class "button-reset" ] 
+        [ text <| if model.mode == GameOver then "Retry!" else "Reset"  ]
+      ]
+    ]
 
 viewTable : CellTable -> Html Msg
 viewTable table =
