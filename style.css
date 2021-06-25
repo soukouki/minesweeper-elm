@@ -1,0 +1,35 @@
+
+body {
+	background: #ddd;
+}
+
+.content {
+
+}
+
+.cells-table {
+
+}
+.cells-line {
+	display: flex;
+}
+
+.cell-button {
+	width: 2em;
+	height: 2em;
+	margin: 2px;
+	border: solid 1px #222;
+	border-radius: 4px;
+}
+.cell-sealed {
+	background: #777;
+}
+.cell-sealed > p {
+	visibility: hidden;
+}
+.cell-bomb {
+	background: #d22;
+}
+.cell-empty {
+	background: #ddd;
+}
