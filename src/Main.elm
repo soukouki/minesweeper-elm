@@ -29,22 +29,32 @@ type alias Cell =
   }
 
 type alias Table a = List (List a)
+type alias TablePos = (Int, Int)
 type alias CellTable = Table Cell
 
-atTable : (Table a) -> (Int, Int) -> Maybe a
+atTable : (Table a) -> TablePos -> Maybe a
 atTable table (x, y) =
   Maybe.withDefault Nothing
     <| Maybe.map (\line -> 
       List.head <| List.drop x line)
     <| List.head
     <| List.drop y table
-indexedMapTable : ((Int, Int) -> a -> b) -> (Table a) -> Table b
+indexedMapTable : (TablePos -> a -> b) -> (Table a) -> Table b
 indexedMapTable proc table =
   List.indexedMap (\y line ->
     List.indexedMap (\x item ->
       proc (x, y) item) 
       line) 
     table
+getSurroundItem : Table a -> TablePos -> List (Maybe a)
+getSurroundItem table (x, y) =
+  let
+    at = (\(ix, iy) -> atTable table (x+ix, y+iy))
+  in
+    [ at (-1, -1), at(0, -1), at(1, -1)
+    , at (-1, 0),             at(1, 0)
+    , at (-1, 1),  at(0, 1),  at(1, 1)
+    ]
 
 type alias Model = 
   { mode: Mode
@@ -65,7 +75,7 @@ init () =
 type Msg
   = Generate (Int, Int)
   | NewTable CellTable
-  | Open (Int, Int)
+  | Open TablePos
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -77,23 +87,44 @@ update msg model =
     Open (x, y) ->
       let
         cell = atTable model.table (x, y)
-        newCell = openCell model.table (x, y)
+        newTable = openCell model.table (x, y)
+        isBomb = withDefault False <| Maybe.map .isBomb <| cell
+        newModel = 
+          if isBomb then
+            { model | table = newTable, mode = GameOver }
+          else
+            { model | table = newTable }
       in
-      if withDefault False <| Maybe.map (\c -> c.isBomb) <| cell then
-        ( { model | table = newCell, mode = GameOver }, Cmd.none)
-      else
-        ( { model | table = newCell }, Cmd.none )
+        ( newModel, Cmd.none )
 
-openCell : CellTable -> (Int, Int) -> CellTable
+openCell : CellTable -> TablePos -> CellTable
 openCell table (x, y) =
-  List.indexedMap 
-    (\ly line -> List.indexedMap (\lx cell -> 
-      if lx==x && ly==y then
-        { cell | isOpen = True }
-      else
-        cell
-    ) line)
-    table
+  let
+    opnedTable = 
+      List.indexedMap 
+        (\ly line -> List.indexedMap (\lx cell -> 
+          if lx==x && ly==y then
+            { cell | isOpen = True }
+          else
+           cell
+        ) line)
+        table
+    surroundBombsCount = Maybe.map .surroundBombsCount <| atTable table (x, y)
+  in
+    if surroundBombsCount == Just 0 then
+      openSurroundCell opnedTable (x, y)
+    else
+      opnedTable
+
+openSurroundCell : CellTable -> TablePos -> CellTable
+openSurroundCell table (x, y) =
+  indexedMapTable (\(ix, iy) cell -> 
+    if (abs x-ix) <= 1 && (abs y-iy) <= 1 && cell.surroundBombsCount == 0 then
+      { cell | isOpen = True}
+    else
+      cell
+    ) 
+    <| table
 
 type alias CellTableParent = Table Bool
 tableGenerater : (Int, Int) -> Cmd Msg
@@ -112,21 +143,17 @@ tableGenerater tuple =
 cellParentGenerator : Random.Generator Bool
 cellParentGenerator =
   Random.map (\n -> if n==0 then True else False)
-    <| Random.int 0 3
+    <| Random.int 0 10--3
 
-countCellSurroundBombs : CellTableParent -> (Int, Int) -> Bool -> Cell
-countCellSurroundBombs table (x, y) isBomb =
-  let
-    at = (\(ix, iy) -> withDefault False <| atTable table (x+ix, y+iy))
-    surround = 
-      [ at (-1, -1), at(0, -1), at(1, -1)
-      , at (-1, 0),             at(1, 0)
-      , at (-1, 1),  at(0, 1),  at(1, 1)
-      ]
-  in
-    { isOpen = False
-    , isBomb = isBomb
-    , surroundBombsCount = List.length <| List.filter (\a -> a) surround }
+countCellSurroundBombs : CellTableParent -> TablePos -> Bool -> Cell
+countCellSurroundBombs table pos isBomb =
+  { isOpen = False
+  , isBomb = isBomb
+  , surroundBombsCount = 
+    List.length 
+      <| List.filter (\a -> a)
+      <| List.map (\c -> withDefault False c)
+      <| getSurroundItem table pos }
   
 
 
@@ -152,6 +179,7 @@ view model =
       ]
     ]
 
+-- indexedMapTableを使いたいが、divの生成をする関係から使えないので、直接やっている
 viewTable : CellTable -> Html Msg
 viewTable table =
   div [class "cells-table"]
@@ -165,7 +193,7 @@ viewTableLine y line =
       (\x cell -> viewCell (x, y) cell)
     <| line
 
-viewCell : (Int, Int) -> Cell -> Html Msg
+viewCell : TablePos -> Cell -> Html Msg
 viewCell tuple cell =
   div 
     [ classList 
