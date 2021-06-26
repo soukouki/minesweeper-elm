@@ -23,8 +23,10 @@ main =
 
 -- MODEL
 
+type CellMode = Opened | Marked | Closed
+
 type alias Cell = 
-  { isOpen: Bool
+  { mode: CellMode
   , isBomb: Bool
   , surroundBombsCount: Int
   }
@@ -73,7 +75,7 @@ update msg model =
 
 openCell : CellTable -> TablePos -> CellTable
 openCell table pos =
-  if withDefault True <| Maybe.map .isOpen <| Table.at table pos then
+  if withDefault True <| Maybe.map ((\m -> m==Opened) << .mode) <| Table.at table pos then
     table
   else
     let
@@ -92,7 +94,7 @@ openSurroundCell table (x, y) =
       let
         isSurround = abs (ix-x) <= 1 && abs (iy-y) <= 1 && not (x==ix && y==iy)
       in
-        if isSurround && not cell.isOpen then
+        if isSurround && cell.mode /= Opened then
           openCell itable (ix, iy)
         else
           itable
@@ -103,7 +105,7 @@ openOneCell table (x, y) =
   List.indexedMap 
     (\ly line -> List.indexedMap (\lx cell -> 
       if lx==x && ly==y then
-        { cell | isOpen = True }
+        { cell | mode = Opened }
       else
         cell
       ) line)
@@ -130,7 +132,7 @@ cellParentGenerator =
 
 countCellSurroundBombs : CellTableParent -> TablePos -> Bool -> Cell
 countCellSurroundBombs table pos isBomb =
-  { isOpen = False
+  { mode = Closed
   , isBomb = isBomb
   , surroundBombsCount = 
     List.length 
@@ -181,9 +183,9 @@ viewCell tuple cell =
   div 
     [ classList 
       [ ("cell-button", True)
-      , ("cell-sealed", not cell.isOpen)
-      , ("cell-empty", cell.isOpen && not cell.isBomb)
-      , ("cell-bomb", cell.isOpen && cell.isBomb)]
+      , ("cell-sealed", cell.mode == Closed)
+      , ("cell-empty", cell.mode == Opened && not cell.isBomb)
+      , ("cell-bomb", cell.mode == Opened && cell.isBomb)]
     , onClick (Open tuple)]
     [ p [] [ text <| fromInt cell.surroundBombsCount ] ]
 
