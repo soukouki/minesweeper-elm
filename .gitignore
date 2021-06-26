@@ -7,3 +7,4 @@ repl-temp-*
 main.js
 
 package-lock.json
+node_modules
