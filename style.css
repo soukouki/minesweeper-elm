@@ -13,18 +13,33 @@ body {
 .content {
 	padding: 10%;
 	height: min-content;
-	margin-top: 100px;
+	margin-top: 5%;
 	background: #ddd;
 	border-radius: 5%;
+	display: flex;
+	justify-content: center;
+	flex-direction: column;
 }
 .gameover {
 	background: #d99;
 }
 
+.header {
+	display: flex;
+	justify-content: center;
+}
+.header > h1 {
+	color: #222;
+}
+
 .cells-table {
+	margin-top: 40px;
+	display: flex;
+	flex-direction: column;
 }
 .cells-line {
 	display: flex;
+	justify-content: center;
 }
 
 .cell-button {
@@ -33,6 +48,7 @@ body {
 	margin: 2px;
 	border: solid 1px #222;
 	border-radius: 4px;
+	cursor: pointer;
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -53,15 +69,37 @@ body {
 	background: #ddd;
 }
 
-.button-reset-area {
-	display: flex;
-	flex-direction: row-reverse;
-}
-.button-reset {
+.button-area {
 	margin-top: 20px;
+	display: flex;
+	justify-content: flex-end;
+}
+.button {
+	margin-left: 12px;
 	padding: 4px;
 	background: #ddd;
 	border: solid 1px #222;
 	border-radius: 4px;
 	font-size: large;
+	cursor: pointer;
+}
+
+.setting-area {
+	margin-top: 20px;
+	padding: 20px;
+	border: solid 1px #222;
+	border-radius: 4px;
+	display: flex;
+	justify-content: space-around;
+}
+.setting-unvisible {
+	visibility: hidden;
+}
+.settin-small-area {
+	display: flex;
+	justify-content: center;
+}
+.setting-input-number {
+	width: 5em;
+	height: 2em;
 }

@@ -9,6 +9,11 @@ import Html.Attributes exposing (class, classList)
 import Html.Events.Extra.Mouse as Mouse
 
 import Table exposing (Table, TablePos)
+import Html exposing (h1)
+import Html.Attributes exposing (type_)
+import Html exposing (input)
+import Html.Events exposing (onInput)
+import Html.Attributes exposing (value)
 
 -- MAIN
 
@@ -31,48 +36,71 @@ type alias Cell =
   , surroundBombsCount: Int
   }
 type alias CellTable = Table Cell
+type alias TableSize = (Int, Int)
+type alias Setting =
+  { size: TableSize
+  , bombRate: Int
+  }
 
 type alias Model = 
   { mode: Mode
   , table: CellTable
+  , isSettingVisible: Bool
+  , setting: Setting
   }
 
 type Mode = Playing | GameOver
 
 init : () -> (Model, Cmd Msg)
 init () =
-  ( Model GameOver [[]] 
-  , tableGenerater (10, 10)
+  ( Model GameOver [[]] False { size = (10, 10), bombRate = 6 }
+  , tableGenerater <| Setting (10, 10) 6
   )
 
 
 -- UPDATE
 
 type Msg
-  = Generate (Int, Int)
+  = Generate
+  | OpenCloseSetting Bool
+  | ChangeSetting ChangeSettingKind
   | NewTable CellTable
   | Open TablePos
   | Mark TablePos
 
+type ChangeSettingKind
+  = ChangeX Int
+  | ChangeY Int
+  | ChangeBombRate Int
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Generate size ->
-      ( model, tableGenerater size )
+    Generate ->
+      ( model, tableGenerater model.setting )
     NewTable table ->
-      ( Model Playing table, Cmd.none )
+      ( { model | mode = Playing, table = table }, Cmd.none )
+    OpenCloseSetting isSettingVisible ->
+      ( { model | isSettingVisible = isSettingVisible }, Cmd.none )
+    ChangeSetting kind ->
+      let
+        newSetting = changeSetting model.setting kind
+      in
+        if Table.all (\c -> c.mode == Closed) model.table then
+          ( { model | setting = newSetting }, tableGenerater model.setting )
+        else
+          ( { model | setting = newSetting }, Cmd.none )
     Open pos ->
       let
         cell = Table.at model.table pos
-        newTable = openCell model.table pos
         isBomb = withDefault False <| Maybe.map .isBomb <| cell
         newModel = 
           if withDefault False <| Maybe.map ((\m -> m==Marked) << .mode) <| cell then
             model
           else if isBomb then
-            { model | table = newTable, mode = GameOver }
+            { model | table = openOneCell model.table pos, mode = GameOver }
           else
-            { model | table = newTable }
+            { model | table = openCell model.table pos }
       in
         ( newModel, Cmd.none )
     Mark pos ->
@@ -109,7 +137,7 @@ openOneCell : CellTable -> TablePos -> CellTable
 openOneCell table (x, y) =
   -- TODO: Table.indexedMapを使うようにする
   -- TODO: ifの処理を書かないようにうまくやる
-  List.indexedMap 
+  List.indexedMap
     (\ly line -> List.indexedMap (\lx cell -> 
       if lx==x && ly==y then
         { cell | mode = Opened }
@@ -122,29 +150,33 @@ markCell : CellTable -> TablePos -> CellTable
 markCell table (x, y) =
   Table.indexedMap (\(ix, iy) cell ->
     if ix==x && iy==y then
-      if cell.mode == Marked then
-        { cell | mode = Closed }
-      else
-        { cell | mode = Marked }
+      case cell.mode of
+        Closed ->
+          { cell | mode = Marked }
+        Marked ->
+          { cell | mode = Closed }
+        Opened ->
+          cell
     else
       cell) table
 
 type alias CellTableParent = Table Bool
-tableGenerater : (Int, Int) -> Cmd Msg
-tableGenerater (x, y) =
+tableGenerater : Setting -> Cmd Msg
+tableGenerater { size, bombRate } =
   let
+    (x, y) = size
     tableParent = 
-      Random.list y <| Random.list x cellParentGenerator
+      Random.list y <| Random.list x <| cellParentGenerator bombRate
   in
     Random.generate NewTable 
     <| Random.map (\table -> 
       Table.indexedMap (countCellSurroundBombs table) table)
     <| tableParent
 
-cellParentGenerator : Random.Generator Bool
-cellParentGenerator =
+cellParentGenerator : Int -> Random.Generator Bool
+cellParentGenerator bombRate =
   Random.map (\n -> if n==0 then True else False)
-    <| Random.int 0 10--3
+    <| Random.int 0 bombRate
 
 countCellSurroundBombs : CellTableParent -> TablePos -> Bool -> Cell
 countCellSurroundBombs table pos isBomb =
@@ -155,8 +187,19 @@ countCellSurroundBombs table pos isBomb =
       <| List.filter (\a -> a)
       <| List.map (\c -> withDefault False c)
       <| Table.getSurroundItem table pos }
-  
 
+changeSetting : Setting -> ChangeSettingKind -> Setting
+changeSetting setting kind =
+  let
+    (ox, oy) = setting.size
+  in
+    case kind of
+      ChangeX x ->
+        { setting | size = (x, oy) }
+      ChangeY y ->
+        { setting | size = (ox, y) }
+      ChangeBombRate rate ->
+        { setting | bombRate = rate }
 
 -- SUBSCRIPTIONS
 
@@ -172,12 +215,23 @@ view model =
   div 
     [ classList [("content", True), ("gameover", model.mode == GameOver)]
     ]
-    [ viewTable model.table
-    , div [ class "button-reset-area" ]
-      [ div 
-        [ Mouse.onClick (\_ -> Generate (10, 10)), class "button-reset" ] 
-        [ text <| if model.mode == GameOver then "Retry!" else "Reset"  ]
+    [ div [ class "header" ] 
+      [ h1 [] [
+        text 
+          <| if model.mode /= GameOver then "マインスイーパー！" else "ゲームオーバー！" ]
       ]
+    , viewTable model.table
+    , div [ class "button-area" ]
+      [ div 
+        [ Mouse.onClick (\_ -> Generate)
+        , classList [("button", True), ("button-reset", True)] ]
+        [ text <| if model.mode == GameOver then "Retry!" else "Reset" ]
+      , div
+        [ Mouse.onClick (\_ -> OpenCloseSetting <| not model.isSettingVisible)
+        , classList [("button", True), ("button-setting", True)] ]
+        [ text "Setting" ]
+      ]
+    , viewSetting model
     ]
 
 -- indexedMapTableを使いたいが、divの生成をする関係から使えないので、直接やっている
@@ -197,13 +251,43 @@ viewTableLine y line =
 viewCell : TablePos -> Cell -> Html Msg
 viewCell pos cell =
   div 
-    [ classList 
-      [ ("cell-button", True)
-      , ("cell-sealed", cell.mode == Closed || cell.mode == Marked)
-      , ("cell-marked", cell.mode == Marked)
-      , ("cell-empty", cell.mode == Opened && not cell.isBomb)
-      , ("cell-bomb", cell.mode == Opened && cell.isBomb)]
+    [ class "cell-parent"
     , Mouse.onClick (\_ -> Open pos)
     , Mouse.onContextMenu (\_ -> Mark pos)]
-    [ p [] [ text <| fromInt cell.surroundBombsCount ] ]
+    [ div 
+      [ classList 
+        [ ("cell-button", True)
+        , ("cell-sealed", cell.mode == Closed || cell.mode == Marked)
+        , ("cell-marked", cell.mode == Marked)
+        , ("cell-empty", cell.mode == Opened && not cell.isBomb)
+        , ("cell-bomb", cell.mode == Opened && cell.isBomb)
+        ]
+      ]
+      [ p [] [ text <| fromInt cell.surroundBombsCount ] ]
+    ]
+
+viewSetting : Model -> Html Msg
+viewSetting model = 
+  let
+    setting = model.setting
+    (x, y) = setting.size
+    inputNum = (\label kind num -> 
+      div
+        [ class "setting-small-area" ]
+        [ p [] [ text label ]
+        , input 
+          [ type_ "number"
+          , onInput (\text ->
+              ChangeSetting <| kind <| withDefault num <| String.toInt text)
+          , value <| String.fromInt <| num
+          , class "setting-input-number"
+          ] []
+        ])
+  in
+    div
+      [ classList [("setting-area", True), ("setting-unvisible", not model.isSettingVisible)] ]
+      [ inputNum "width" ChangeX x
+      , inputNum "height" ChangeY y
+      , inputNum "bomb-rate" ChangeBombRate setting.bombRate
+      ]
 

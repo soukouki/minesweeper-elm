@@ -4,14 +4,6 @@ type alias Table a = List (List a)
 
 type alias TablePos = (Int, Int)
 
-at : (Table a) -> TablePos -> Maybe a
-at table (x, y) =
-  Maybe.withDefault Nothing
-    <| Maybe.map (\line -> 
-      List.head <| List.drop x line)
-    <| List.head
-    <| List.drop y table
-
 indexedMap : (TablePos -> a -> b) -> (Table a) -> Table b
 indexedMap proc table =
   List.indexedMap (\y line ->
@@ -45,3 +37,15 @@ indexedFoldl proc default table =
       }
     ) { res=default, y=0 }
   <| table
+
+at : Table a -> TablePos -> Maybe a
+at table pos =
+  indexedFoldl (\item res ipos ->
+    if pos==ipos then
+      Just item
+    else
+      res) Nothing table
+
+all : (a -> Bool) -> Table a -> Bool
+all proc table =
+  indexedFoldl (\item res pos -> res && proc item) True table
