@@ -49,7 +49,7 @@ type alias Model =
   , setting: Setting
   }
 
-type Mode = Playing | GameOver
+type Mode = Playing | GameOver | GameClear
 
 init : () -> (Model, Cmd Msg)
 init () =
@@ -94,13 +94,16 @@ update msg model =
       let
         cell = Table.at model.table pos
         isBomb = withDefault False <| Maybe.map .isBomb <| cell
+        opneedTable = openCell model.table pos
         newModel = 
           if withDefault False <| Maybe.map ((\m -> m==Marked) << .mode) <| cell then
             model
           else if isBomb then
             { model | table = openOneCell model.table pos, mode = GameOver }
+          else if model.mode == Playing && Table.all (\c -> c.isBomb || c.mode == Opened) opneedTable then
+            { model | table = opneedTable, mode = GameClear }
           else
-            { model | table = openCell model.table pos }
+            { model | table = opneedTable }
       in
         ( newModel, Cmd.none )
     Mark pos ->
@@ -213,12 +216,26 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   div 
-    [ classList [("content", True), ("gameover", model.mode == GameOver)]
+    [ classList 
+      [ ("content", True)
+      , ("gameover", model.mode == GameOver)
+      , ("gameclear", model.mode == GameClear)
+      ]
     ]
     [ div [ class "header" ] 
-      [ h1 [ classList [("gameover", model.mode == GameOver) ] ]
+      [ h1 [ 
+        classList 
+          [ ("gameover", model.mode == GameOver)
+          , ("gameclear", model.mode == GameClear) ] ]
       [ text 
-          <| if model.mode /= GameOver then "マインスイーパー！" else "ゲームオーバー！" ]
+          <| case model.mode of 
+            Playing ->
+              "マインスイーパー！" 
+            GameOver ->
+              "ゲームオーバー！"
+            GameClear ->
+              "ゲームクリア！"
+      ]
       ]
     , viewTable model.table
     , div [ class "button-area" ]
