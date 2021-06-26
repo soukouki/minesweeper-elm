@@ -1,0 +1,12 @@
+
+# elm-package generated files
+elm-stuff
+# elm-repl generated files
+repl-temp-*
+
+package-lock.json
+
+*.elm
+elm.json
+Makefile
+memo.txt

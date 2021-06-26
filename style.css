@@ -1,0 +1,156 @@
+
+* {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	background: #bbb;
+	display: flex;
+	justify-content: center;
+}
+
+.content {
+	padding: 10%;
+	height: min-content;
+	margin-top: 5%;
+	background: #ddd;
+	border-radius: 40px;
+	display: flex;
+	justify-content: center;
+	flex-direction: column;
+}
+.content.gameover {
+	background: #daa;
+	animation: gameover-contet 800ms ease 0s 1 alternate none running;
+}
+@keyframes gameover-contet {
+	50% {
+		background: #f99;
+	}
+}
+.content.gameclear {
+	background: #dd7;
+	animation: gameclear-content 800ms ease 0s 1 alternate none running;
+}
+@keyframes gameclear-content {
+	50% {
+		background: #ff7;
+	}
+}
+
+.header {
+	display: flex;
+	justify-content: center;
+}
+.header > h1 {
+	color: #222;
+}
+.header > .gameover {
+	animation: gameover-title 1600ms ease 0s 1 alternate none running;
+}
+@keyframes gameover-title {
+	50% {
+		transform: scale(1.3);
+		color: #d22;
+	}
+}
+.header > .gameclear {
+	animation: gameclear-title 1600ms ease 0s 1 alternate none running;
+}
+@keyframes gameclear-title {
+	50% {
+		transform: scale(1.3);
+		color: #aa2;
+	}
+}
+
+.cells-table {
+	margin-top: 40px;
+	display: flex;
+	flex-direction: column;
+}
+.cells-line {
+	display: flex;
+	justify-content: center;
+}
+
+.cell-button {
+	width: 2em;
+	height: 2em;
+	margin: 2px;
+	border: solid 1px #222;
+	border-radius: 4px;
+	cursor: pointer;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+.cell-closed {
+	background: #777;
+	transition: all 200ms 0s ease;
+}
+.cell-closed:hover {
+	background: #999;
+}
+.cell-closed > p {
+	visibility: hidden;
+}
+.cell-marked {
+	background: #22d;
+	transition: all 200ms 0s ease;
+}
+.cell-marked:hover {
+	background: #44f;
+}
+.cell-marked > p {
+	visibility: hidden;
+}
+.cell-bomb {
+	background: #d22;
+	animation: bomb 1200ms ease 0s 1 alternate none running;
+}
+@keyframes bomb {
+	50% {
+		transform: scale(2)
+	}
+}
+.cell-empty {
+	background: #ddd;
+	transition: all 800ms 0s ease;
+}
+
+.button-area {
+	margin-top: 20px;
+	display: flex;
+	justify-content: flex-end;
+}
+.button {
+	margin-left: 12px;
+	padding: 4px;
+	background: #ddd;
+	border: solid 1px #222;
+	border-radius: 4px;
+	font-size: large;
+	cursor: pointer;
+}
+
+.setting-area {
+	margin-top: 20px;
+	padding: 20px;
+	border: solid 1px #222;
+	border-radius: 4px;
+	display: flex;
+	justify-content: space-around;
+}
+.setting-unvisible {
+	visibility: hidden;
+}
+.settin-small-area {
+	display: flex;
+	justify-content: center;
+}
+.setting-input-number {
+	width: 5em;
+	height: 2em;
+}
