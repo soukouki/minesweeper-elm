@@ -5,8 +5,8 @@ import Maybe exposing (withDefault)
 import Random
 import Browser
 import Html exposing (Html, div, p, text)
-import Html.Events exposing (onClick)
 import Html.Attributes exposing (class, classList)
+import Html.Events.Extra.Mouse as Mouse
 
 import Table exposing (Table, TablePos)
 
@@ -52,26 +52,31 @@ type Msg
   = Generate (Int, Int)
   | NewTable CellTable
   | Open TablePos
+  | Mark TablePos
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Generate tuple ->
-      ( model, tableGenerater tuple )
+    Generate size ->
+      ( model, tableGenerater size )
     NewTable table ->
       ( Model Playing table, Cmd.none )
-    Open (x, y) ->
+    Open pos ->
       let
-        cell = Table.at model.table (x, y)
-        newTable = openCell model.table (x, y)
+        cell = Table.at model.table pos
+        newTable = openCell model.table pos
         isBomb = withDefault False <| Maybe.map .isBomb <| cell
         newModel = 
-          if isBomb then
+          if withDefault False <| Maybe.map ((\m -> m==Marked) << .mode) <| cell then
+            model
+          else if isBomb then
             { model | table = newTable, mode = GameOver }
           else
             { model | table = newTable }
       in
         ( newModel, Cmd.none )
+    Mark pos ->
+      ( { model | table = markCell model.table pos }, Cmd.none )
 
 openCell : CellTable -> TablePos -> CellTable
 openCell table pos =
@@ -102,6 +107,8 @@ openSurroundCell table (x, y) =
 
 openOneCell : CellTable -> TablePos -> CellTable
 openOneCell table (x, y) =
+  -- TODO: Table.indexedMapを使うようにする
+  -- TODO: ifの処理を書かないようにうまくやる
   List.indexedMap 
     (\ly line -> List.indexedMap (\lx cell -> 
       if lx==x && ly==y then
@@ -111,19 +118,28 @@ openOneCell table (x, y) =
       ) line)
     table
 
+markCell : CellTable -> TablePos -> CellTable
+markCell table (x, y) =
+  Table.indexedMap (\(ix, iy) cell ->
+    if ix==x && iy==y then
+      if cell.mode == Marked then
+        { cell | mode = Closed }
+      else
+        { cell | mode = Marked }
+    else
+      cell) table
+
 type alias CellTableParent = Table Bool
 tableGenerater : (Int, Int) -> Cmd Msg
-tableGenerater tuple =
-  case tuple of
-    (x, y) ->
-      let
-        tableParent = 
-          Random.list y <| Random.list x cellParentGenerator
-      in
-        Random.generate NewTable 
-        <| Random.map (\table -> 
-          Table.indexedMap (countCellSurroundBombs table) table)
-        <| tableParent
+tableGenerater (x, y) =
+  let
+    tableParent = 
+      Random.list y <| Random.list x cellParentGenerator
+  in
+    Random.generate NewTable 
+    <| Random.map (\table -> 
+      Table.indexedMap (countCellSurroundBombs table) table)
+    <| tableParent
 
 cellParentGenerator : Random.Generator Bool
 cellParentGenerator =
@@ -159,7 +175,7 @@ view model =
     [ viewTable model.table
     , div [ class "button-reset-area" ]
       [ div 
-        [ onClick (Generate (10, 10)), class "button-reset" ] 
+        [ Mouse.onClick (\_ -> Generate (10, 10)), class "button-reset" ] 
         [ text <| if model.mode == GameOver then "Retry!" else "Reset"  ]
       ]
     ]
@@ -179,13 +195,15 @@ viewTableLine y line =
     <| line
 
 viewCell : TablePos -> Cell -> Html Msg
-viewCell tuple cell =
+viewCell pos cell =
   div 
     [ classList 
       [ ("cell-button", True)
-      , ("cell-sealed", cell.mode == Closed)
+      , ("cell-sealed", cell.mode == Closed || cell.mode == Marked)
+      , ("cell-marked", cell.mode == Marked)
       , ("cell-empty", cell.mode == Opened && not cell.isBomb)
       , ("cell-bomb", cell.mode == Opened && cell.isBomb)]
-    , onClick (Open tuple)]
+    , Mouse.onClick (\_ -> Open pos)
+    , Mouse.onContextMenu (\_ -> Mark pos)]
     [ p [] [ text <| fromInt cell.surroundBombsCount ] ]
 

@@ -43,6 +43,9 @@ body {
 .cell-sealed > p {
 	visibility: hidden;
 }
+.cell-marked {
+	background: #22d;
+}
 .cell-bomb {
 	background: #d22;
 }
