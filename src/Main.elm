@@ -53,7 +53,7 @@ type Mode = Playing | GameOver
 
 init : () -> (Model, Cmd Msg)
 init () =
-  ( Model GameOver [[]] False { size = (10, 10), bombRate = 6 }
+  ( Model Playing [[]] False { size = (10, 10), bombRate = 6 }
   , tableGenerater <| Setting (10, 10) 6
   )
 
@@ -216,8 +216,8 @@ view model =
     [ classList [("content", True), ("gameover", model.mode == GameOver)]
     ]
     [ div [ class "header" ] 
-      [ h1 [] [
-        text 
+      [ h1 [ classList [("gameover", model.mode == GameOver) ] ]
+      [ text 
           <| if model.mode /= GameOver then "マインスイーパー！" else "ゲームオーバー！" ]
       ]
     , viewTable model.table
@@ -257,13 +257,18 @@ viewCell pos cell =
     [ div 
       [ classList 
         [ ("cell-button", True)
-        , ("cell-sealed", cell.mode == Closed || cell.mode == Marked)
+        , ("cell-closed", cell.mode == Closed)
         , ("cell-marked", cell.mode == Marked)
         , ("cell-empty", cell.mode == Opened && not cell.isBomb)
         , ("cell-bomb", cell.mode == Opened && cell.isBomb)
         ]
       ]
-      [ p [] [ text <| fromInt cell.surroundBombsCount ] ]
+      [ p [] [ text <| 
+        if cell.isBomb || cell.surroundBombsCount == 0 then 
+          ""
+        else 
+          String.fromInt cell.surroundBombsCount 
+      ] ]
     ]
 
 viewSetting : Model -> Html Msg
