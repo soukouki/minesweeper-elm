@@ -8,6 +8,7 @@ import Html exposing (Html, div, p, text)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (class, classList)
 
+import Table exposing (Table, TablePos)
 
 -- MAIN
 
@@ -27,34 +28,7 @@ type alias Cell =
   , isBomb: Bool
   , surroundBombsCount: Int
   }
-
-type alias Table a = List (List a)
-type alias TablePos = (Int, Int)
 type alias CellTable = Table Cell
-
-atTable : (Table a) -> TablePos -> Maybe a
-atTable table (x, y) =
-  Maybe.withDefault Nothing
-    <| Maybe.map (\line -> 
-      List.head <| List.drop x line)
-    <| List.head
-    <| List.drop y table
-indexedMapTable : (TablePos -> a -> b) -> (Table a) -> Table b
-indexedMapTable proc table =
-  List.indexedMap (\y line ->
-    List.indexedMap (\x item ->
-      proc (x, y) item) 
-      line) 
-    table
-getSurroundItem : Table a -> TablePos -> List (Maybe a)
-getSurroundItem table (x, y) =
-  let
-    at = (\(ix, iy) -> atTable table (x+ix, y+iy))
-  in
-    [ at (-1, -1), at(0, -1), at(1, -1)
-    , at (-1, 0),             at(1, 0)
-    , at (-1, 1),  at(0, 1),  at(1, 1)
-    ]
 
 type alias Model = 
   { mode: Mode
@@ -86,7 +60,7 @@ update msg model =
       ( Model Playing table, Cmd.none )
     Open (x, y) ->
       let
-        cell = atTable model.table (x, y)
+        cell = Table.at model.table (x, y)
         newTable = openCell model.table (x, y)
         isBomb = withDefault False <| Maybe.map .isBomb <| cell
         newModel = 
@@ -98,33 +72,42 @@ update msg model =
         ( newModel, Cmd.none )
 
 openCell : CellTable -> TablePos -> CellTable
-openCell table (x, y) =
-  let
-    opnedTable = 
-      List.indexedMap 
-        (\ly line -> List.indexedMap (\lx cell -> 
-          if lx==x && ly==y then
-            { cell | isOpen = True }
-          else
-           cell
-        ) line)
-        table
-    surroundBombsCount = Maybe.map .surroundBombsCount <| atTable table (x, y)
-  in
-    if surroundBombsCount == Just 0 then
-      openSurroundCell opnedTable (x, y)
-    else
-      opnedTable
+openCell table pos =
+  if withDefault True <| Maybe.map .isOpen <| Table.at table pos then
+    table
+  else
+    let
+      opnedTable = openOneCell table pos
+      surroundBombsCount = Maybe.map .surroundBombsCount <| Table.at table pos
+    in
+      if surroundBombsCount == Just 0 then
+        openSurroundCell opnedTable pos
+      else
+        opnedTable
 
 openSurroundCell : CellTable -> TablePos -> CellTable
 openSurroundCell table (x, y) =
-  indexedMapTable (\(ix, iy) cell -> 
-    if (abs x-ix) <= 1 && (abs y-iy) <= 1 && cell.surroundBombsCount == 0 then
-      { cell | isOpen = True}
-    else
-      cell
-    ) 
-    <| table
+  Table.indexedFoldl -- この部分なんか手続きっぽいので、ifをfillterみたいなのを使って処理させたい
+    (\cell itable (ix, iy) ->
+      let
+        isSurround = abs (ix-x) <= 1 && abs (iy-y) <= 1 && not (x==ix && y==iy)
+      in
+        if isSurround && not cell.isOpen then
+          openCell itable (ix, iy)
+        else
+          itable
+      ) table table
+
+openOneCell : CellTable -> TablePos -> CellTable
+openOneCell table (x, y) =
+  List.indexedMap 
+    (\ly line -> List.indexedMap (\lx cell -> 
+      if lx==x && ly==y then
+        { cell | isOpen = True }
+      else
+        cell
+      ) line)
+    table
 
 type alias CellTableParent = Table Bool
 tableGenerater : (Int, Int) -> Cmd Msg
@@ -137,7 +120,7 @@ tableGenerater tuple =
       in
         Random.generate NewTable 
         <| Random.map (\table -> 
-          indexedMapTable (countCellSurroundBombs table) table)
+          Table.indexedMap (countCellSurroundBombs table) table)
         <| tableParent
 
 cellParentGenerator : Random.Generator Bool
@@ -153,7 +136,7 @@ countCellSurroundBombs table pos isBomb =
     List.length 
       <| List.filter (\a -> a)
       <| List.map (\c -> withDefault False c)
-      <| getSurroundItem table pos }
+      <| Table.getSurroundItem table pos }
   
 
 
