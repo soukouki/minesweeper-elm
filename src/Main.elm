@@ -189,19 +189,14 @@ openSurroundCell table ( x, y ) =
 
 openOneCell : CellTable -> TablePos -> CellTable
 openOneCell table ( x, y ) =
-    -- TODO: Table.indexedMapを使うようにする
     -- TODO: ifの処理を書かないようにうまくやる
-    List.indexedMap
-        (\ly line ->
-            List.indexedMap
-                (\lx cell ->
-                    if lx == x && ly == y then
-                        { cell | mode = Opened }
+    Table.indexedMap
+        (\( ix, iy ) cell ->
+            if ix == x && iy == y then
+                { cell | mode = Opened }
 
-                    else
-                        cell
-                )
-                line
+            else
+                cell
         )
         table
 
